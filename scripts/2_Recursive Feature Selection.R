@@ -107,7 +107,7 @@ ggplot(BOR_all, aes(x = Variable, y = meanImp, color = Run, group = Run)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Combine Boruta stats with variable names and run labels
+# Combine and label Boruta outputs
 BOR100$Variable <- rownames(BOR100)
 BOR500$Variable <- rownames(BOR500)
 BOR1000$Variable <- rownames(BOR1000)
@@ -117,17 +117,18 @@ BOR1000$Run <- "maxRuns = 1000"
 
 BOR_all <- rbind(BOR100, BOR500, BOR1000)
 
-# Filter only Confirmed variables
+# Filter confirmed variables only
 BOR_confirmed <- BOR_all %>%
   filter(decision == "Confirmed")
 
-# Plot with mean importance and std deviation
+# Plot using minImp and maxImp as error bars
 ggplot(BOR_confirmed, aes(x = Variable, y = meanImp, fill = Run)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.7)) +
-  geom_errorbar(aes(ymin = meanImp - sdImp, ymax = meanImp + sdImp),
+  geom_errorbar(aes(ymin = minImp, ymax = maxImp),
                 position = position_dodge(width = 0.7), width = 0.3) +
-  labs(title = "Confirmed Features: Importance and Stability Across Boruta Runs",
-       x = "Predictor Variable", y = "Mean Importance (± SD)") +
+  labs(title = "Confirmed Features: Importance Range Across Boruta Runs",
+       x = "Predictor Variable", y = "Mean Importance (min–max range)") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom")
+
