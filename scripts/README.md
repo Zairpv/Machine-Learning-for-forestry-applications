@@ -26,3 +26,15 @@ It includes:
 - Performs the Boruta algorithm 
 - Filter "confirmed" predictors for subsequent random forest modeling
 - Data visualization
+
+---
+
+## `3_RandomForest_Example.R`
+This script performs the second step: RF modeling. It includes:
+
+- Fit RF modeling for C stocks data (2013)
+- Tuning hyperparameters
+- Assesing model uncertainty
+- Model validation
+- Spatial predictions
+- Variable importance 
