@@ -39,20 +39,59 @@ These packages are required for data manipulation, statistical analysis, and plo
 
 
 ```{r libraries}
+library(agricolae)
+library(akima)
 library(Boruta) 
+library(biscale)
 library(car)
+library(caret)
+library(CAST)
+library(coin)
 library(cowplot)
+library(data.table)
 library(DescTools)
+library(doParallel)
 library(dplyr)
+library(e1071)
+library(emmeans)
+library(extrafont)
+library(foreach)
+library(forcats)
 library(ggplot2)
 library(ggpubr)
+library(ggRandomForests)
+library(grid)
+library(gridExtra)
+library(gt)
 library(here)
 library(Hmisc)
+library(Kendall)
+library(magick)
+library(ModelMap)
 library(moments)
+library(parallel)
+library(pdp)
+library(PerformanceAnalytics)
+library(plot3D)
+library(plotmo)
 library(psych)
+library(purrr)
+library(randomForest)
+library(randomForestSRC)
+library(raster)
+library(RColorBrewer)
 library(readr)
 library(readxl)
+library(rfUtilities)
+library(rgdal)
+library(sf)
+library(sp)
+library(stats)
 library(tidyverse)
+library(tools)
+library(vivid)
+library(plotly)
+
 ```
 
 # 3. EXPLORATORY ANALYSIS (STAGE 1)
@@ -520,3 +559,143 @@ ggplot(BOR_confirmed, aes(x = Variable, y = meanImp, fill = Run)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom")
 ```
+
+# 5. RANDOM FOREST MODELING
+
+This section presents the core modeling framework using the **Random Forest (RF)** algorithm. The steps below were implemented using the `randomForest` and `ranger` packages in R, applied to training data previously filtered and prepared (We used the object `data2013_formodels`).
+
+The workflow is divided into the following stages:
+
+- **5.1 Model Training**: Fit the RF model using selected predictors and tuned parameters.
+- **5.2 Model Validation**: Evaluate model performance using independent test data and internal accuracy metrics.
+- **5.3 Uncertainty Analysis**: Quantify model uncertainty through residual distributions, prediction intervals, or bootstrapping.
+- **5.4 Model Prediction**: Generate carbon stock predictions at unmeasured locations using spatial covariates.
+- **5.5 Variable Importance and Non-linear Relationships**: Analyze the relative contribution of each predictor and visualize key interactions using Partial Dependence Plots (PDPs).
+- **5.6 Hotspot Assessment**: Identify spatial clusters or "hotspots" of carbon accumulation using prediction surfaces and quantile thresholds.
+
+Each modeling step is documented with code, diagnostics, and interpretation, following best practices in machine learning for environmental applications.
+
+
+## 5.1. Graphical expressions
+To ensure consistent and readable labeling across all plots in this section, we defined custom expressions for axis titles and figure annotations using `expression()` in R. These expressions allow the inclusion of **mathematical notation** (e.g., superscripts, bold text, and subscripts) commonly used in scientific reports.
+
+```{r define_plot_labels, echo=TRUE}
+# Axis and plot label expressions
+Mgha_expression   <- expression("C stocks (Mg ha"^"-1"~")")
+Mgha_expression2  <- expression(bold("a) C models (Mg ha"^"-1"~")"))
+Mgha_expression3  <- expression("Mg ha"^"-1")
+
+# Model label expressions for plot annotations or legends
+initialmodel_expresion <- expression(paste("RF"[0]," (Default values)"))
+finalmodel_expression   <- expression(paste("RF"[1], " (Optimized values)"))
+```
+
+## 5.2. Tuning hyperparameters
+To improve the performance of the Random Forest (RF) model, we conducted a **hyperparameter tuning** procedure using a custom modeling function in combination with the `caret` package. Specifically, we tuned two key hyperparameters:
+
+- `ntree`: the number of trees to grow in the forest.
+- `mtry`: the number of variables randomly sampled at each split.
+
+We created a custom model structure (`customRF`) to enable tuning of both parameters simultaneously, as the default implementation of `caret::train()` does not allow tuning `ntree` directly.
+
+A **grid search** was performed over combinations of `ntree` values (from 500 to 1000) and `mtry` values (from 1 to 12). The tuning process was evaluated using **repeated 10-fold cross-validation with 5 repetitions** (`repeatedcv`) to reduce variance in performance estimates.
+
+This procedure was applied using the 2013 training data (`data_train2013`), selecting only the relevant predictors for modeling. The resulting hyperparameter configuration was used for model optimization in the following sections.
+
+```{r rf_hyperparameter_tuning, message=FALSE, warning=FALSE}
+
+# Define custom Random Forest model structure
+customRF <- list(type = "Regression",
+                 library = "randomForest",
+                 loop = NULL)
+
+customRF$parameters <- data.frame(parameter = c("ntree", "mtry"),
+                                  class = rep("numeric", 2),
+                                  label = c("ntree", "mtry"))
+
+customRF$grid <- function(x, y, len = NULL, search = "grid") {}
+
+customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  randomForest(x, y, mtry = param$mtry, ntree = param$ntree, ...)
+}
+
+customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL) {
+  predict(modelFit, newdata)
+}
+
+customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL) {
+  predict(modelFit, newdata, type = "prob")
+}
+
+customRF$sort <- function(x) x[order(x[,1]),]
+customRF$levels <- function(x) x$classes
+
+# Define tuning grid
+set.seed(12345)
+tunegrid_all <- expand.grid(.ntree = c(500, 600, 700, 800, 900, 1000),
+                            .mtry  = c(1:12))
+
+# Define training control using repeated 10-fold CV
+controltenfold_5rep <- trainControl(method = "repeatedcv",
+                                    number = 10,
+                                    repeats = 5,
+                                    search = 'grid')
+
+# Select predictors from training and test sets
+all_Predictors2013_train <- data_train2013[c(4,8:18)]
+all_Predictors2013_test <- data_test2013[c(4,8:18)]
+```
+
+
+## 5.3. Random Forest application 
+After defining the custom Random Forest structure and outlining the hyperparameter grid, we applied the model to the **2013 training data** using the `train()` function from the `caret` package.
+
+The model was trained using repeated 10-fold cross-validation with 5 repetitions (`repeatedcv`) to ensure stable performance estimates. The optimization metric was the **Root Mean Square Error (RMSE)**, which reflects the accuracy of continuous predictions.
+
+The output includes:
+- The best combination of hyperparameters (`ntree` and `mtry`)
+- The final Random Forest model object
+- A detailed summary of performance metrics for all hyperparameter combinations tested
+
+```{r rf_application, message=FALSE, warning=FALSE}
+
+# Apply Random Forest model using caret and custom settings
+best_hyperpars_C2013_5rep <- train(x = all_Predictors2013_train,
+                                   y = data_train2013$C_STOCKS,
+                                   method = customRF,
+                                   metric = "RMSE",
+                                   tuneGrid = tunegrid_all,
+                                   trControl = controltenfold_5rep)
+
+# View summary of results
+best_hyperpars_C2013_5rep
+best_hyperpars_C2013_5rep$finalModel
+View(best_hyperpars_C2013_5rep$results)
+```
+
+## 5.4. Detailed modeling procedure 
+
+Due to the extensive time requiring to run script. Check `/scripts` folder to follow the next modeling steps:
+
+## `3_RandomForest_Example.R`
+This script performs the second step: RF modeling. It includes:
+
+- Fit RF modeling for C stocks data (2013)
+- Tuning hyperparameters 
+  - The selection of the best combination were evaluated as iterations increases in order to detect error stability
+  - We tested 5, 10, 15, 20, 25, 50, 75 and 100 cross validation repetitions
+  - Metrics of error stability were assesed by Non parametric friedman test
+  - This script is an optimization framework for RF modeling 
+- Assesing model uncertainty
+  - Definition of observed vs predicted values
+- Model validation
+  - Cross validation metrics 
+  - Error stabilization assessment
+- Spatial predictions
+  - Map creation
+  - SD maps 
+- Variable importance 
+  - Comparison of Variable impiortance
+  - Partial plots and ecological analysis
+  - 3D Plotly graphs - Non linear relationships among dependant and predictor variable
+  
