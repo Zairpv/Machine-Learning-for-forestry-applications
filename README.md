@@ -12,6 +12,14 @@ This repository contains a portfolio of scripts and examples that apply machine 
 
 ---
 
+## Getting Started
+
+- Clone or download the repository.
+- Open the .Rproj file in RStudio.
+- Review scripts under the scripts/ folder.
+- Use the simulated dataset in data/ to reproduce the workflow
+---
+
 ## 📁 Repository Structure
 
 ```text
@@ -23,3 +31,5 @@ This repository contains a portfolio of scripts and examples that apply machine 
 │   └── README.md
 ├── docs/         # RMarkdown reports (optional, for future expansion)
 ├── README.md          # This file
+
+
