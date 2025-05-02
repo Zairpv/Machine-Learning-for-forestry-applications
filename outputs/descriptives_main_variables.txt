@@ -2,30 +2,42 @@
  Descriptive statistics by group 
 : 2013
 : FH
-   vars   n  mean   sd median trimmed  mad min   max range skew kurtosis   se
-X1    1 153 10.37 5.24   9.46   10.08 4.69   0 26.25 26.25 0.56     0.27 0.42
------------------------------------------------------------------ 
+   vars   n  mean   sd median trimmed  mad min   max
+X1    1 153 10.37 5.24   9.46   10.08 4.69   0 26.25
+   range skew kurtosis   se
+X1 26.25 0.56     0.27 0.42
+------------------------------------------- 
 : 2018
 : FH
-   vars   n mean  sd median trimmed  mad min   max range skew kurtosis   se
-X1    1 153  4.2 1.9   4.09    4.18 1.89   0 10.01 10.01  0.1     0.11 0.15
------------------------------------------------------------------ 
+   vars   n mean  sd median trimmed  mad min   max range
+X1    1 153  4.2 1.9   4.09    4.18 1.89   0 10.01 10.01
+   skew kurtosis   se
+X1  0.1     0.11 0.15
+------------------------------------------- 
 : 2023
 : FH
-   vars   n mean   sd median trimmed  mad  min   max range skew kurtosis   se
-X1    1 153 5.13 2.31   5.18    5.07 2.16 0.94 14.32 13.38 0.58     1.26 0.19
------------------------------------------------------------------ 
+   vars   n mean   sd median trimmed  mad  min   max
+X1    1 153 5.13 2.31   5.18    5.07 2.16 0.94 14.32
+   range skew kurtosis   se
+X1 13.38 0.58     1.26 0.19
+------------------------------------------- 
 : 2013
 : L
-   vars   n mean   sd median trimmed  mad  min  max range skew kurtosis   se
-X1    1 153 2.06 0.79   1.96       2 0.59 0.44 5.44  4.99 1.23     3.46 0.06
------------------------------------------------------------------ 
+   vars   n mean   sd median trimmed  mad  min  max range
+X1    1 153 2.06 0.79   1.96       2 0.59 0.44 5.44  4.99
+   skew kurtosis   se
+X1 1.23     3.46 0.06
+------------------------------------------- 
 : 2018
 : L
-   vars   n mean   sd median trimmed  mad min max range skew kurtosis   se
-X1    1 153 1.89 0.58    1.8    1.84 0.52 0.8   4  3.21 0.83     0.99 0.05
------------------------------------------------------------------ 
+   vars   n mean   sd median trimmed  mad min max range
+X1    1 153 1.89 0.58    1.8    1.84 0.52 0.8   4  3.21
+   skew kurtosis   se
+X1 0.83     0.99 0.05
+------------------------------------------- 
 : 2023
 : L
-   vars   n mean   sd median trimmed  mad  min  max range skew kurtosis   se
-X1    1 153 2.23 0.87   2.14    2.18 0.78 0.66 4.87   4.2 0.63     0.23 0.07
+   vars   n mean   sd median trimmed  mad  min  max range
+X1    1 153 2.23 0.87   2.14    2.18 0.78 0.66 4.87   4.2
+   skew kurtosis   se
+X1 0.63     0.23 0.07
