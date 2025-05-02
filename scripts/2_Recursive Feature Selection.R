@@ -70,3 +70,64 @@ borutaRF_traindf_C13_1000runs=Boruta(C~UTMX+UTMY+ELE+SLO+ASP+AGE+DTH+BA+GAP+COV+
 print(borutaRF_traindf_C13_1000runs$finalDecision)
 (BORzscores_traindf_C13_1000runs<-attStats(borutaRF_traindf_C13_1000runs))
 
+
+# Extract statistics from Boruta runs
+BOR100 <- attStats(borutaRF_traindf_C13_100runs)
+BOR500 <- attStats(borutaRF_traindf_C13_500runs)
+BOR1000 <- attStats(borutaRF_traindf_C13_1000runs)
+
+# Add run identifier
+BOR100$Variable <- rownames(BOR100)
+BOR500$Variable <- rownames(BOR500)
+BOR1000$Variable <- rownames(BOR1000)
+BOR100$Run <- "maxRuns = 100"
+BOR500$Run <- "maxRuns = 500"
+BOR1000$Run <- "maxRuns = 1000"
+
+# Combine all runs
+BOR_all <- rbind(BOR100, BOR500, BOR1000)
+
+# Select and reshape for table
+library(dplyr)
+library(tidyr)
+bor_table <- BOR_all %>%
+  select(Variable, meanImp, decision, Run) %>%
+  pivot_wider(names_from = Run, values_from = c(meanImp, decision))
+
+bor_table
+
+
+# Create importance plot
+ggplot(BOR_all, aes(x = Variable, y = meanImp, color = Run, group = Run)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 2) +
+  labs(title = "Comparison of Mean Importance Across Boruta Runs",
+       x = "Predictor Variable",
+       y = "Mean Importance Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Combine Boruta stats with variable names and run labels
+BOR100$Variable <- rownames(BOR100)
+BOR500$Variable <- rownames(BOR500)
+BOR1000$Variable <- rownames(BOR1000)
+BOR100$Run <- "maxRuns = 100"
+BOR500$Run <- "maxRuns = 500"
+BOR1000$Run <- "maxRuns = 1000"
+
+BOR_all <- rbind(BOR100, BOR500, BOR1000)
+
+# Filter only Confirmed variables
+BOR_confirmed <- BOR_all %>%
+  filter(decision == "Confirmed")
+
+# Plot with mean importance and std deviation
+ggplot(BOR_confirmed, aes(x = Variable, y = meanImp, fill = Run)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7)) +
+  geom_errorbar(aes(ymin = meanImp - sdImp, ymax = meanImp + sdImp),
+                position = position_dodge(width = 0.7), width = 0.3) +
+  labs(title = "Confirmed Features: Importance and Stability Across Boruta Runs",
+       x = "Predictor Variable", y = "Mean Importance (± SD)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
