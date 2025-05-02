@@ -50,3 +50,18 @@ Measurements were recorded for **918 observations** across three sampling campai
 | `CON_NUM`          | Numerical encoding of condition (`Managed` = 1, `Unmanaged` = 2)   | Numeric     |
 
 ---
+
+## Training and testing subsets for machine learning modeling 
+**Dependant variable**: C_STOCKS
+
+**Training files:**
+`training_2013_85.csv`
+`training_2018_85.csv`
+`training_2023_85.csv`
+
+**Testing files:**
+`testing_2013_85.csv`
+`testing_2018_85.csv`
+`testing_2023_85.csv`
+
+---
