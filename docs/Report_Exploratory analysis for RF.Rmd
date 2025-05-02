@@ -1,0 +1,123 @@
+---
+title: "Exploratory Analysis for Random Forest Modeling"
+author: "Dra. Zaira Rosario Pérez-Vázquez"
+date: "Diciembre 2023"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    fig_caption: true
+    fig_path: "docs/"
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introduction
+
+This report documents exploratory data analysis (EDA) for a Random Forest model on simulated forest floor carbon data. Data includes measurements from two layers (L and FH) across three years: 2013, 2018, 2023.
+
+# Load Libraries
+
+```{r libraries}
+library(tidyverse)
+library(psych)
+library(here)
+library(DescTools)
+library(ggpubr)
+library(car)
+library(Hmisc)
+library(moments)
+library(cowplot)
+library(readr)
+```
+
+# Load Data
+
+```{r load-data}
+data_path <- here("data", "RF_data_Carbon_ForestFloor.csv")
+datasetFF <- read_csv(data_path)
+str(datasetFF)
+```
+
+# Data Preparation
+
+```{r prepare}
+datasetFF <- datasetFF %>%
+  mutate(
+    YEAR = as.factor(YEAR),
+    LAYER = as.factor(LAYER),
+    CONDITION = as.factor(CONDITION),
+    LAYER_NUM = as.factor(LAYER_NUM),
+    CON_NUM = as.factor(CON_NUM)
+  )
+```
+
+# Summary Statistics
+
+```{r descriptives}
+describe(datasetFF$C_STOCKS)
+describeBy(datasetFF$C_STOCKS, list(datasetFF$YEAR, datasetFF$LAYER))
+```
+
+# Histogram by Layer and Year
+
+```{r histograms, fig.width=10, fig.height=4}
+datasetFF %>%
+  ggplot(aes(x = C_STOCKS)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  facet_grid(YEAR ~ LAYER) +
+  theme_minimal() +
+  labs(title = "Distribution of C Stocks", x = "C Stocks (Mg ha^-1)", y = "Count")
+```
+
+# Normality Assessment (L layer)
+
+```{r norm-plots-L, fig.width=12, fig.height=4}
+plots <- list()
+for (yr in c("2013", "2018", "2023")) {
+  data_tmp <- datasetFF %>% filter(YEAR == yr & LAYER == "L")
+  p <- ggplot(data_tmp, aes(x = C_STOCKS)) +
+    geom_histogram(aes(y = ..density..), binwidth = 0.5, fill = "gray", color = "black") +
+    geom_density(color = "blue") +
+    stat_function(fun = dnorm, args = list(mean = mean(data_tmp$C_STOCKS), sd = sd(data_tmp$C_STOCKS)), color = "red") +
+    labs(title = paste("Year", yr), x = "C Stocks (Mg ha^-1)", y = "Density") +
+    theme_minimal()
+  plots[[yr]] <- p
+}
+ggarrange(plotlist = plots, ncol = 3, common.legend = TRUE)
+```
+
+# Spearman Correlations
+
+```{r correlations}
+data2013 <- datasetFF %>% filter(YEAR == "2013")
+corr_vars <- data2013 %>% select(C_STOCKS, UTMX, UTMY, STAND_AGE, BASAL_AREA, DOM_HEIGHT, SPECIES_RICHNESS, SHANNON_INDEX, GAP_FRACTION, CANOPY_COVER, ELEVATION, SLOPE, ASPECT)
+rcorr(as.matrix(corr_vars), type = "spearman")
+```
+
+# Variance Inflation Factor (VIF)
+
+```{r vif}
+modelC_2013VIF <- lm(C_STOCKS ~ UTMX + UTMY + STAND_AGE + BASAL_AREA + DOM_HEIGHT + SPECIES_RICHNESS + SHANNON_INDEX + GAP_FRACTION + ELEVATION + SLOPE + ASPECT, data = data2013)
+vif(modelC_2013VIF)
+```
+
+# Train/Test Split
+
+```{r split}
+#set.seed(123)
+#train_idx <- sample(seq_len(nrow(data2013)), size = 0.85 * nrow(data2013))
+#training_2013 <- data2013[train_idx, ]
+#testing_2013 <- data2013[-train_idx, ]
+
+#write_csv(training_2013, here("data", "training_2013_85.csv"))
+#write_csv(testing_2013, here("data", "testing_2013_15.csv"))
+```
+
+# Conclusion
+
+This exploratory analysis identified key variables, distributional patterns, and correlation structures to inform future Random Forest modeling stages. All outputs are saved in the `/outputs` folder, and this report is rendered to `/docs` for easy viewing.
