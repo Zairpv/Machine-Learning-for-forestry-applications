@@ -12,12 +12,18 @@ output:
     fig_path: "docs/"
     theme: paper
 ---
+<style>
+h1 {
+  color: #48A6A7;
+}
+</style>
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-# 1. Introduction
+# 1. INTRODUCTION
 
 This technical report outlines the Random Forest modeling workflow used to map carbon stocks in the organic soil layers (forest floor: L and FH horizons). The process is divided into six stages, each documented in separate scripts located within the `/scripts` folder:
 
@@ -28,24 +34,28 @@ d) Model Validation
 e) Spatial Prediction of Carbon Stocks
 f) Ecological Interpretation and Hotspot Mapping
 
-# 2. Load requiered R packages 
+# 2. REQUIRED R PACKAGES 
 These packages are required for data manipulation, statistical analysis, and plotting throughout the modeling workflow.
 
 
 ```{r libraries}
-library(tidyverse)
-library(psych)
-library(here)
-library(DescTools)
-library(ggpubr)
+library(Boruta) 
 library(car)
+library(cowplot)
+library(DescTools)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(here)
 library(Hmisc)
 library(moments)
-library(cowplot)
+library(psych)
 library(readr)
+library(readxl)
+library(tidyverse)
 ```
 
-# 3. Exploratory analysis (Stage 1)
+# 3. EXPLORATORY ANALYSIS (STAGE 1)
 
 ## 3.1. Load data
 
@@ -348,3 +358,165 @@ Stratification by organic layer (`LAYER`) was applied to maintain the proportion
 ## 3.8. Conclusion
 
 This exploratory analysis identified key variables, distributional patterns, and correlation structures to inform future Random Forest modeling stages. All outputs are saved in the `/outputs` folder, and this report is rendered to `/docs` for easy viewing.
+
+# 4. FEATURE SELECTION PROCEDURE
+To improve model performance and interpretability, we performed a feature selection procedure (FSP) prior to model training. This step helps to identify the most relevant predictor variables while reducing noise and minimizing redundancy among features.
+
+The procedure was applied using the **training subset only**, to avoid information leakage and ensure proper model validation. Selection was based on a combination of statistical criteria, including:
+
+- **Correlation analysis** to eliminate highly collinear variables.
+- **Variance Inflation Factor (VIF)** to detect multicollinearity.
+- **Variable importance rankings** generated during preliminary Random Forest runs.
+
+By filtering out less informative or redundant predictors, this step ensures that the final model remains parsimonious, robust, and interpretable.
+
+## 4.1. Load train/test datasets
+
+In this section, we load the training and testing datasets previously created during the data splitting stage (Section 3.7). The subsets were saved as `.csv` files to ensure reproducibility and consistency across different modeling steps.
+
+As an example, we load the datasets corresponding to the year **2013**, which were split with an **85/15 ratio** for training and validation, respectively. After loading, we ensure that categorical variables (`YEAR`, `LAYER`, and `CONDITION`) are properly defined as factors, which is necessary for model fitting and stratified evaluation.
+
+```{r load_train_test_2013, message=FALSE, warning=FALSE}
+# Load train and test datasets for 2013
+data_train2013 <- read_csv(here("data", "training_2013_85.csv"))
+data_test2013  <- read_csv(here("data", "testing_2013_15.csv"))
+
+# Convert grouping variables to factors
+data_train2013$YEAR      <- as.factor(data_train2013$YEAR)
+data_train2013$LAYER     <- as.factor(data_train2013$LAYER)
+data_train2013$CONDITION <- as.factor(data_train2013$CONDITION)
+
+data_test2013$YEAR       <- as.factor(data_test2013$YEAR)
+data_test2013$LAYER      <- as.factor(data_test2013$LAYER)
+data_test2013$CONDITION  <- as.factor(data_test2013$CONDITION)
+
+#Select covariates
+names(data_train2013)
+data2013_formodels=data.frame(data_train2013[c(1,4,5,6:18)])
+names(data2013_formodels)=c("YEAR","FFLAYER","C",
+                            "UTMX","UTMY",
+                            "AGE","BA","DTH","RICH",
+                            "H","GAP","COV","ELE","SLO","ASP","MAN")
+```
+
+
+## 4.2. Boruta algorithm (ML tool of RF)
+
+To identify the most relevant predictors and avoid overfitting due to the inclusion of irrelevant variables, we applied the **Boruta algorithm**, a wrapper method specifically designed for feature selection in machine learning models—particularly effective with **Random Forest (RF)**.
+
+Boruta works by comparing the importance of real features with that of randomized (shadow) features. It iteratively removes variables that consistently show lower importance than the best-performing shadow attribute. This ensures that only variables that are statistically significantly more informative than noise are retained.
+
+We tested Boruta’s performance using different values of `maxRuns` (100, 500, and 1000) to evaluate the stability and robustness of the selected features. All runs used consistent model parameters (`ntree = 500`, `mtry = 4`, `pValue = 0.5`), and were performed using the training data for 2013 (`data2013_formodels`).
+
+```{r boruta_fs, message=FALSE, warning=FALSE}
+
+# MaxRuns = 100
+borutaRF_traindf_C13_100runs <- Boruta(C ~ UTMX + UTMY + ELE + SLO + ASP + AGE + DTH + BA +
+                                         GAP + COV + RICH + H + MAN + FFLAYER,
+                                       data = data2013_formodels,
+                                       doTrace = 3, pValue = 0.5, ntree = 500, mtry = 4)
+print(borutaRF_traindf_C13_100runs$finalDecision)
+BORzscores_traindf_C13_100runs <- attStats(borutaRF_traindf_C13_100runs)
+
+# MaxRuns = 500
+borutaRF_traindf_C13_500runs <- Boruta(C ~ UTMX + UTMY + ELE + SLO + ASP + AGE + DTH + BA +
+                                         GAP + COV + RICH + H + MAN + FFLAYER,
+                                       data = data2013_formodels,
+                                       doTrace = 3, pValue = 0.5, ntree = 500, mtry = 4, maxRuns = 500)
+print(borutaRF_traindf_C13_500runs$finalDecision)
+BORzscores_traindf_C13_500runs <- attStats(borutaRF_traindf_C13_500runs)
+plot(borutaRF_traindf_C13_500runs)
+
+# MaxRuns = 1000
+borutaRF_traindf_C13_1000runs <- Boruta(C ~ UTMX + UTMY + ELE + SLO + ASP + AGE + DTH + BA +
+                                          GAP + COV + RICH + H + MAN + FFLAYER,
+                                        data = data2013_formodels,
+                                        doTrace = 3, pValue = 0.5, ntree = 500, mtry = 4, maxRuns = 1000)
+print(borutaRF_traindf_C13_1000runs$finalDecision)
+BORzscores_traindf_C13_1000runs <- attStats(borutaRF_traindf_C13_1000runs)
+```
+
+### 4.2.1. Comparison of Feature Importance Across Boruta Runs
+
+The table below summarizes the final decision and mean importance score for each predictor across the three Boruta runs (`maxRuns = 100`, `500`, and `1000`). The graph provides a visual comparison of the average importance of each variable, helping to evaluate the consistency of Boruta's selection process.
+
+```{r boruta_summary_table, message=FALSE, warning=FALSE}
+
+# Extract statistics from Boruta runs
+BOR100 <- attStats(borutaRF_traindf_C13_100runs)
+BOR500 <- attStats(borutaRF_traindf_C13_500runs)
+BOR1000 <- attStats(borutaRF_traindf_C13_1000runs)
+
+# Add run identifier
+BOR100$Variable <- rownames(BOR100)
+BOR500$Variable <- rownames(BOR500)
+BOR1000$Variable <- rownames(BOR1000)
+BOR100$Run <- "maxRuns = 100"
+BOR500$Run <- "maxRuns = 500"
+BOR1000$Run <- "maxRuns = 1000"
+
+# Combine all runs
+BOR_all <- rbind(BOR100, BOR500, BOR1000)
+
+# Select and reshape for table
+library(dplyr)
+library(tidyr)
+bor_table <- BOR_all %>%
+  select(Variable, meanImp, decision, Run) %>%
+  pivot_wider(names_from = Run, values_from = c(meanImp, decision))
+
+bor_table
+
+
+# Create importance plot
+ggplot(BOR_all, aes(x = Variable, y = meanImp, color = Run, group = Run)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 2) +
+  labs(title = "Comparison of Mean Importance Across Boruta Runs",
+       x = "Predictor Variable",
+       y = "Mean Importance Score") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Este código:
+- Extrae los resultados de cada corrida con `attStats()`
+- Construye una **tabla comparativa amplia**
+- Genera un **gráfico de líneas** para visualizar la estabilidad de la importancia media
+
+### 4.2.2. Confirmed Features: Variability Based on Importance Range
+
+The figure below focuses on **Confirmed** predictors across Boruta runs. Since the Boruta output does not include the standard deviation (`sdImp`) by default, we represent importance variability using the range between the **minimum** and **maximum importance** values observed for each variable.
+
+This provides a conservative estimate of how stable each variable's importance was during the selection process.
+
+```{r boruta_confirmed_plot_corrected, message=FALSE, warning=FALSE}
+
+# Combine and label Boruta outputs
+BOR100$Variable <- rownames(BOR100)
+BOR500$Variable <- rownames(BOR500)
+BOR1000$Variable <- rownames(BOR1000)
+BOR100$Run <- "maxRuns = 100"
+BOR500$Run <- "maxRuns = 500"
+BOR1000$Run <- "maxRuns = 1000"
+
+BOR_all <- rbind(BOR100, BOR500, BOR1000)
+
+# Filter confirmed variables only
+library(dplyr)
+library(ggplot2)
+
+BOR_confirmed <- BOR_all %>%
+  filter(decision == "Confirmed")
+
+# Plot using minImp and maxImp as error bars
+ggplot(BOR_confirmed, aes(x = Variable, y = meanImp, fill = Run)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7)) +
+  geom_errorbar(aes(ymin = minImp, ymax = maxImp),
+                position = position_dodge(width = 0.7), width = 0.3) +
+  labs(title = "Confirmed Features: Importance Range Across Boruta Runs",
+       x = "Predictor Variable", y = "Mean Importance (min–max range)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+```
