@@ -6,6 +6,17 @@ It aims to support reproducible modeling workflows for analyzing environmental i
 
 ---
 
+### 📄 Technical Report
+
+The full technical report detailing the data processing and interpretation of results is available at the following link:
+
+👉 [View the Technical Report](https://zairpv.github.io/Machine-Learning-for-forestry-applications/)
+
+This report summarizes the analyses and methodologies implemented in the scripts and datasets contained within this repository, following a reproducible R Markdown workflow.
+
+
+---
+
 ### 🔍 Objectives
 
 - Explore and document the use of ML algorithms in forest science.
