@@ -386,33 +386,33 @@ vif_df <- data.frame(Variable = names(vif_values), VIF = vif_values)
 set.seed(1234567)
 
 ## 7.1. 2013
-datasetsize_2013<-floor(nrow(data2013)*0.85) #training data  
-index_2013<-sample(1:nrow(data2013),size = datasetsize_2013)
-training_2013<-data2013[index_2013,]
-testing_2013<-data2013[-index_2013,]
-View(training_2013)
-View(testing_2013)
-write.csv(training_2013,here("data", "training_2013_85.csv"),row.names = TRUE)
-write.csv(testing_2013,here("data", "testing_2013_15.csv"),row.names = TRUE)
+#datasetsize_2013<-floor(nrow(data2013)*0.85) #training data  
+#index_2013<-sample(1:nrow(data2013),size = datasetsize_2013)
+#training_2013<-data2013[index_2013,]
+#testing_2013<-data2013[-index_2013,]
+#View(training_2013)
+#View(testing_2013)
+#write.csv(training_2013,here("data", "training_2013_85.csv"),row.names = TRUE)
+#write.csv(testing_2013,here("data", "testing_2013_15.csv"),row.names = TRUE)
 
 ## 7.2. 2018
-datasetsize_2018<-floor(nrow(data2018)*0.85) #training data  
-index_2018<-sample(1:nrow(data2018),size = datasetsize_2018)
-training_2018<-data2018[index_2018,]
-testing_2018<-data2018[-index_2018,]
-View(training_2018)
-View(testing_2018)
-write.csv(training_2018,here("data", "training_2018_85.csv"),row.names = TRUE)
-write.csv(testing_2018,here("data", "testing_2018_15.csv"),row.names = TRUE)
+#datasetsize_2018<-floor(nrow(data2018)*0.85) #training data  
+#index_2018<-sample(1:nrow(data2018),size = datasetsize_2018)
+#training_2018<-data2018[index_2018,]
+#testing_2018<-data2018[-index_2018,]
+#View(training_2018)
+#View(testing_2018)
+#write.csv(training_2018,here("data", "training_2018_85.csv"),row.names = TRUE)
+#write.csv(testing_2018,here("data", "testing_2018_15.csv"),row.names = TRUE)
 
 ## 7.3. 2023
-datasetsize_2023<-floor(nrow(data2023)*0.85) #training data  
-index_2023<-sample(1:nrow(data2023),size = datasetsize_2023)
-training_2023<-data2023[index_2023,]
-testing_2023<-data2023[-index_2023,]
-View(training_2023)
-View(testing_2023)
-write.csv(training_2023,here("data", "training_2023_85.csv"),row.names = TRUE)
-write.csv(testing_2023,here("data", "testing_2023_15.csv"),row.names = TRUE)
+#datasetsize_2023<-floor(nrow(data2023)*0.85) #training data  
+#index_2023<-sample(1:nrow(data2023),size = datasetsize_2023)
+#training_2023<-data2023[index_2023,]
+#testing_2023<-data2023[-index_2023,]
+#View(training_2023)
+#View(testing_2023)
+#write.csv(training_2023,here("data", "training_2023_85.csv"),row.names = TRUE)
+#write.csv(testing_2023,here("data", "testing_2023_15.csv"),row.names = TRUE)
 
 
