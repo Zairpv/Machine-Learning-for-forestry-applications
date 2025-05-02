@@ -29,12 +29,26 @@ It includes:
 
 ---
 
+
 ## `3_RandomForest_Example.R`
 This script performs the second step: RF modeling. It includes:
 
 - Fit RF modeling for C stocks data (2013)
-- Tuning hyperparameters
+- Tuning hyperparameters 
+  - The selection of the best combination were evaluated as iterations increases in order to detect error stability
+  - We tested 5, 10, 15, 20, 25, 50, 75 and 100 cross validation repetitions
+  - Metrics of error stability were assesed by Non parametric friedman test
+  - This script is an optimization framework for RF modeling 
 - Assesing model uncertainty
+  - Definition of observed vs predicted values
 - Model validation
+  - Cross validation metrics 
+  - Error stabilization assessment
 - Spatial predictions
+  - Map creation
+  - SD maps 
 - Variable importance 
+  - Comparison of Variable impiortance
+  - Partial plots and ecological analysis
+  - 3D Plotly graphs - Non linear relationships among dependant and predictor variable
+  
