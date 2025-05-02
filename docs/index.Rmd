@@ -602,7 +602,7 @@ A **grid search** was performed over combinations of `ntree` values (from 500 to
 
 This procedure was applied using the 2013 training data (`data_train2013`), selecting only the relevant predictors for modeling. The resulting hyperparameter configuration was used for model optimization in the following sections.
 
-```{r rf_hyperparameter_tuning, message=FALSE, warning=FALSE}
+```{r rf_hyperparameter_tuning, message=FALSE, warning=FALSE,eval=FALSE}
 
 # Define custom Random Forest model structure
 customRF <- list(type = "Regression",
@@ -657,8 +657,7 @@ The output includes:
 - The final Random Forest model object
 - A detailed summary of performance metrics for all hyperparameter combinations tested
 
-```{r rf_application, message=FALSE, warning=FALSE}
-
+```{r rf_application_codebox, eval=FALSE}
 # Apply Random Forest model using caret and custom settings
 best_hyperpars_C2013_5rep <- train(x = all_Predictors2013_train,
                                    y = data_train2013$C_STOCKS,
