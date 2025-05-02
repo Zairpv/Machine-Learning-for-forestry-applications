@@ -1,26 +1,40 @@
 # Machine Learning for Forestry Applications 🌲
+## Estimations of Forest floor C stocks (2013 - 2023)
 
-This repository contains a portfolio of scripts and examples that apply machine learning (ML) techniques to ecological and forestry datasets. It aims to support reproducible modeling workflows for analyzing forest structure, diversity, biomass, and carbon stocks.
+This repository contains a portfolio of scripts that apply machine learning (ML) techniques to model forest floor. 
+It aims to support reproducible modeling workflows for analyzing environmental issues.
 
 ---
 
-## 🔍 Objectives
+### 🔍 Objectives
 
 - Explore and document the use of ML algorithms in forest science.
-- Evaluate ecological patterns and forest indicators using supervised models.
 - Share reproducible workflows for carbon and biodiversity modeling.
 
 ---
 
-## Getting Started
+### 📝 List of Scripts and details 
+
+**1_Exploratory analyses for RF.R:**
+
+- Estimate the descriptive statistics for target and predictor variables.  
+- Analyze data distribution and normality.  
+- Explore correlation between target and predictor variables.  
+- Explore potential multicollinearity.  
+- Split data into train and test subsets.  
+
+---
+
+### 🚪 Getting Started
 
 - Clone or download the repository.
 - Open the .Rproj file in RStudio.
 - Review scripts under the scripts/ folder.
-- Use the simulated dataset in data/ to reproduce the workflow
+- Use the simulated dataset in data/ to reproduce the workflow.
+
 ---
 
-## 📁 Repository Structure
+### 📁 Repository Structure
 
 ```text
 ├── data/              # Simulated datasets for modeling (with metadata)
@@ -29,7 +43,9 @@ This repository contains a portfolio of scripts and examples that apply machine 
 ├── scripts/           # R scripts for analysis (EDA, modeling, visualization)
 │   └── 1_Exploratory analyses for RF.R
 │   └── README.md
-├── docs/         # RMarkdown reports (optional, for future expansion)
+├── docs/              # RMarkdown reports (optional, for future expansion)
 ├── README.md          # This file
 
+```
 
+---
