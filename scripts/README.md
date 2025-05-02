@@ -51,4 +51,10 @@ This script performs the second step: RF modeling. It includes:
   - Comparison of Variable impiortance
   - Partial plots and ecological analysis
   - 3D Plotly graphs - Non linear relationships among dependant and predictor variable
-  
+
+
+## `4. Final graphs - all models.R`
+It contains the visualization of results:
+  - ggplots of error stabilization
+  - variable importance comparisons
+  - spatial predictions assessments
