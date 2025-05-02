@@ -1,0 +1,350 @@
+---
+title: "Technical report - Random Forest modeling (Forest floor C stocks)"
+subtitle: "Machine learning Methodology"
+author: "Dra. Zaira Rosario Pérez-Vázquez"
+date: "Diciembre 2023"
+output:
+  html_document:
+    toc: true
+    number_sections: false
+    toc_depth: 6
+    fig_caption: true
+    fig_path: "docs/"
+    theme: paper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# 1. Introduction
+
+This technical report outlines the Random Forest modeling workflow used to map carbon stocks in the organic soil layers (forest floor: L and FH horizons). The process is divided into six stages, each documented in separate scripts located within the `/scripts` folder:
+
+a) Exploratory Data Analysis
+b) Feature Selection Procedure
+c) Random Forest Modeling
+d) Model Validation
+e) Spatial Prediction of Carbon Stocks
+f) Ecological Interpretation and Hotspot Mapping
+
+# 2. Load requiered R packages 
+These packages are required for data manipulation, statistical analysis, and plotting throughout the modeling workflow.
+
+
+```{r libraries}
+library(tidyverse)
+library(psych)
+library(here)
+library(DescTools)
+library(ggpubr)
+library(car)
+library(Hmisc)
+library(moments)
+library(cowplot)
+library(readr)
+```
+
+# 3. Exploratory analysis (Stage 1)
+
+## 3.1. Load data
+
+**Important:**
+
+- The file `RF_data_Carbon_ForestFloor.csv` is an example with a structure similar to the real data.
+- The original data is not shared publicly for confidentiality reasons.
+- The code was designed to work fully with this simulated version.
+
+<div style="background:#f8f9fa; padding:10px; border-left:4px solid #007bff;">
+<b>**🔒 Confidentiality Notice:**</b> 
+If you have questions or need access to the real data, you can contact the repository author:
+
+**Zaira Rosario Pérez-Vázquez**  
+zairpv@gmail.com
+</div>
+
+
+```{r load-data}
+data_path <- here("data", "RF_data_Carbon_ForestFloor.csv")
+datasetFF <- read_csv(data_path)
+str(datasetFF)
+```
+
+## 3.2. Data Preparation
+
+The categorical variables are converted to factors to enable data grouping by sampling year, organic layer (L and FH), and forest management conditions.
+
+```{r prepare}
+datasetFF <- datasetFF %>%
+  mutate(
+    YEAR = as.factor(YEAR),
+    LAYER = as.factor(LAYER),
+    CONDITION = as.factor(CONDITION),
+    LAYER_NUM = as.factor(LAYER_NUM),
+    CON_NUM = as.factor(CON_NUM)
+  )
+```
+
+## 3.3. Summary Statistics
+
+To explore the distribution of carbon stocks in the forest floor, we computed descriptive statistics using the `psych` package.
+
+- `describe()` provides overall statistics for the `C_STOCKS` variable, including mean, standard deviation, minimum, maximum, skewness, and kurtosis.
+- `describeBy()` is used to calculate the same summary statistics, but grouped by **sampling year** and **organic layer** (L and FH), which helps us assess variation across both temporal and vertical gradients.
+An
+
+```{r descriptives}
+describe(datasetFF$C_STOCKS)
+describeBy(datasetFF$C_STOCKS, list(datasetFF$YEAR, datasetFF$LAYER))
+```
+
+## 3.4. Data distribution (Histograms and Normality)
+
+To assess the distribution of carbon stocks (`C_STOCKS`) across sampling years (2013, 2018, 2023) and organic layers (L and FH), we used histograms and normality diagnostics.
+
+Histograms were generated using `ggplot2`, displaying the frequency distributions of `C_STOCKS` faceted by year and layer. This layout facilitates the identification of temporal and vertical patterns in carbon accumulation.
+
+**L layer**
+```{r prepare_L_data, message=FALSE, warning=FALSE}
+# Filtrar datos por año y capa L
+data2013_L <- subset(datasetFF, YEAR == "2013" & LAYER == "L")
+data2018_L <- subset(datasetFF, YEAR == "2018" & LAYER == "L")
+data2023_L <- subset(datasetFF, YEAR == "2023" & LAYER == "L")
+```
+
+**FH layer**
+```{r prepare_FH_data, message=FALSE, warning=FALSE}
+# Filtrar datos por año y capa FH
+data2013_FH <- subset(datasetFF, YEAR == "2013" & LAYER == "FH")
+data2018_FH <- subset(datasetFF, YEAR == "2018" & LAYER == "FH")
+data2023_FH <- subset(datasetFF, YEAR == "2023" & LAYER == "FH")
+```
+
+To evaluate the normality of carbon stock distributions in the **L layer**, we applied a combined visual and statistical approach. For each year, we produced histograms overlaid with both the kernel density estimate (blue line) and a theoretical normal distribution (red line), calculated using the observed mean and standard deviation. A dashed orange line indicates the mean value of each distribution.
+
+### 3.4.1. Histograms - L layer
+```{r histograms_L_panel_full, fig.width=12, fig.height=4, echo=TRUE, message=FALSE, warning=FALSE}
+# Expression for x-axis label
+Mgha_expression1 <- expression("Mg ha"^"-1")
+
+# Plot for 2013 - L
+HIST_CL13 <- ggplot(data2013_L, aes(x = C_STOCKS)) +
+  geom_histogram(aes(y=..density..), alpha=0.3, size=0.4, color="darkgrey", binwidth=0.5, fill="lightgray") +
+  stat_function(aes(color="theoretical normal distribution"),
+                fun=dnorm, args=list(mean=mean(data2013_L$C_STOCKS), sd=sd(data2013_L$C_STOCKS)), size=0.5) +
+  geom_density(aes(color="density"), size=0.5) +
+  geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=TRUE), color="mean"), linetype="dashed", size=0.8) +
+  scale_color_manual(name="Data distribution\n               L layer:",
+                     values=c("density"="blue", "theoretical normal distribution"="red", "mean"="orange"),
+                     labels=c("Observed density", "Mean value", "Theoretical normal")) +
+  labs(x=Mgha_expression1, y="Density", title="2013") +
+  annotate("text", x=4.85, y=0.68, label="p = 0.069", family="A") +
+  theme_bw() +
+  theme(text=element_text(size=12, family="A"),
+        legend.position="bottom",
+        legend.title=element_text(hjust=0.5, size=11, face="bold"),
+        legend.text=element_text(size=11),
+        plot.title=element_text(size=14, face="bold", hjust=0.5),
+        axis.text=element_text(size=12))
+
+# Plot for 2018 - L
+HIST_CL18 <- ggplot(data2018_L, aes(x = C_STOCKS)) +
+  geom_histogram(aes(y=..density..), alpha=0.3, size=0.4, color="darkgrey", binwidth=0.5, fill="lightgray") +
+  stat_function(aes(color="theoretical normal distribution"),
+                fun=dnorm, args=list(mean=mean(data2018_L$C_STOCKS), sd=sd(data2018_L$C_STOCKS)), size=0.5) +
+  geom_density(aes(color="density"), size=0.5) +
+  geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=TRUE), color="mean"), linetype="dashed", size=0.8) +
+  scale_color_manual(name="Data distribution\n               L layer:",
+                     values=c("density"="blue", "theoretical normal distribution"="red", "mean"="orange"),
+                     labels=c("Observed density", "Mean value", "Theoretical normal")) +
+  labs(x=Mgha_expression1, y="Density", title="2018") +
+  annotate("text", x=4.85, y=0.68, label="p = 0.069", family="A") +
+  theme_bw() +
+  theme(text=element_text(size=12, family="A"),
+        legend.position="bottom",
+        legend.title=element_text(hjust=0.5, size=11, face="bold"),
+        legend.text=element_text(size=11),
+        plot.title=element_text(size=14, face="bold", hjust=0.5),
+        axis.text=element_text(size=12))
+
+# Plot for 2023 - L
+HIST_CL23 <- ggplot(data2023_L, aes(x = C_STOCKS)) +
+  geom_histogram(aes(y=..density..), alpha=0.3, size=0.4, color="darkgrey", binwidth=0.5, fill="lightgray") +
+  stat_function(aes(color="theoretical normal distribution"),
+                fun=dnorm, args=list(mean=mean(data2023_L$C_STOCKS), sd=sd(data2023_L$C_STOCKS)), size=0.5) +
+  geom_density(aes(color="density"), size=0.5) +
+  geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=TRUE), color="mean"), linetype="dashed", size=0.8) +
+  scale_color_manual(name="Data distribution\n               L layer:",
+                     values=c("density"="blue", "theoretical normal distribution"="red", "mean"="orange"),
+                     labels=c("Observed density", "Mean value", "Theoretical normal")) +
+  labs(x=Mgha_expression1, y="Density", title="2023") +
+  annotate("text", x=4.85, y=0.68, label="p = 0.069", family="A") +
+  theme_bw() +
+  theme(text=element_text(size=12, family="A"),
+        legend.position="bottom",
+        legend.title=element_text(hjust=0.5, size=11, face="bold"),
+        legend.text=element_text(size=11),
+        plot.title=element_text(size=14, face="bold", hjust=0.5),
+        axis.text=element_text(size=12))
+
+# Combine the plots into a single panel
+Supp1 <- ggarrange(HIST_CL13, HIST_CL18, HIST_CL23,
+                   ncol=3, nrow=1,
+                   common.legend=TRUE, legend="bottom")
+
+# Display the panel
+Supp1
+```
+
+
+### 3.4.2. Histograms - FH layer
+```{r histograms_FH_panel_full, fig.width=12, fig.height=4, echo=TRUE, message=FALSE, warning=FALSE}
+
+# Plot for 2013 - FH
+HIST_CFH13=ggplot(data2013_FH, aes(x = C_STOCKS)) +
+    geom_histogram(aes(y=..density..),alpha=0.3, size = 0.4, color = "darkgrey",binwidth = 4, fill = "lightgray", color = "black") +
+    geom_density(color = "blue", size = 0.5,position = "identity") +
+    labs(x = Mgha_expression1, y = "Density", title = "a) C stocks")+
+    annotate("text", x=23.1, y=0.09, label= "p = 0.394",family = "A") +
+    geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=T)),   # Ignore NA values for mean
+               color="orange", linetype="dashed", size=0.8)+
+    stat_function(fun = dnorm, args = list(mean = mean(data2013_FH$C_STOCKS), 
+                                           sd = sd(data2013_FH$C_STOCKS)), color = "red",  size = 0.5)+
+    theme_bw()+
+    theme(text = element_text(size=11,family = "A"),
+          plot.title = element_text(size = 14,face = "bold",hjust = 0.5),
+          plot.subtitle = element_text(size = 11,face = "bold",hjust = 0),
+          axis.text = element_text(size = 11))+
+    labs(title = "2013")
+
+# Plot for 2018 - FH
+HIST_CFH18=ggplot(data2018_FH, aes(x = C_STOCKS)) +
+    geom_histogram(aes(y=..density..),alpha=0.3, size = 0.4, color = "darkgrey",binwidth = 1.5, fill = "lightgray", color = "black") +
+    geom_density(color = "blue", size = 0.5,position = "identity") +
+    labs(x = Mgha_expression1, y = "Density", title = "a) C stocks")+
+    annotate("text", x=8.6, y=0.22, label= "p = 0.825",family = "A") +
+    geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=T)),   # Ignore NA values for mean
+               color="orange", linetype="dashed", size=0.8)+
+    stat_function(fun = dnorm, args = list(mean = mean(data2018_FH$C_STOCKS), 
+                                           sd = sd(data2018_FH$C_STOCKS)), color = "red",  size = 0.5)+
+    theme_bw()+
+    theme(text = element_text(size=11,family = "A"),
+          plot.title = element_text(size = 14,face = "bold",hjust = 0.5),
+          plot.subtitle = element_text(size = 11,face = "bold",hjust = 0),
+          axis.text = element_text(size = 11))+
+    labs(title = "2018")
+
+# Plot for 2023 - FH
+HIST_CFH23=ggplot(data2023_FH, aes(x = C_STOCKS)) +
+    geom_histogram(aes(y=..density..),alpha=0.3, size = 0.4, color = "darkgrey",binwidth = 2.5, fill = "lightgray", color = "black") +
+    geom_density(color = "blue", size = 0.5,position = "identity") +
+    labs(x = Mgha_expression1, y = "Density", title = "a) C stocks")+
+    annotate("text", x=13, y=0.18, label= "p = 0.788",family = "A") +
+    geom_vline(aes(xintercept=mean(C_STOCKS, na.rm=T)),   # Ignore NA values for mean
+               color="orange", linetype="dashed", size=0.8)+
+    stat_function(fun = dnorm, args = list(mean = mean(data2023_FH$C_STOCKS), 
+                                           sd = sd(data2023_FH$C_STOCKS)), color = "red",  size = 0.5)+
+    theme_bw()+
+    theme(text = element_text(size=11,family = "A"),
+          plot.title = element_text(size = 14,face = "bold",hjust = 0.5),
+          plot.subtitle = element_text(size = 11,face = "bold",hjust = 0),
+          axis.text = element_text(size = 11))+
+    labs(title = "2023")
+
+# Combine the plots into a single panel
+Supp2=ggarrange(HIST_CFH13,HIST_CFH18,HIST_CFH23,
+                ncol = 3,nrow = 1,
+                common.legend = TRUE,legend="bottom")
+
+# Display the panel
+Supp2
+```
+
+### 3.4.3. Normality tests
+
+Additionally, the **Kolmogorov-Smirnov test** was used to formally assess whether the data deviated significantly from a normal distribution. These results were visualized separately per year and integrated into a single panel for clarity.
+
+In all three cases, the test returned **p-values greater than 0.5**, indicating that the null hypothesis of normality **could not be rejected**. These results suggest that the carbon stock data for the L layer is reasonably consistent with a normal distribution across the evaluated years.
+
+**L layer**
+```{r ks_test_2013_L, echo=TRUE, message=FALSE, warning=FALSE}
+ks.test(data2013_L$C_STOCKS, 
+        pnorm, 
+        mean(data2013_L$C_STOCKS), 
+        sd(data2013_L$C_STOCKS))
+ks.test(data2018_L$C_STOCKS,pnorm,mean(data2018_L$C_STOCKS),sd(data2018_L$C_STOCKS))
+ks.test(data2023_L$C_STOCKS,pnorm,mean(data2023_L$C_STOCKS),sd(data2023_L$C_STOCKS))
+```
+
+**FH layer**
+```{r ks_test_2013_FH, echo=TRUE, message=FALSE, warning=FALSE}
+ks.test(data2013_FH$C_STOCKS, 
+        pnorm, 
+        mean(data2013_FH$C_STOCKS), 
+        sd(data2013_FH$C_STOCKS))
+ks.test(data2018_FH$C_STOCKS,pnorm,mean(data2018_FH$C_STOCKS),sd(data2018_FH$C_STOCKS))
+ks.test(data2023_FH$C_STOCKS,pnorm,mean(data2023_FH$C_STOCKS),sd(data2023_FH$C_STOCKS))
+```
+
+
+## 3.5. Spearman Correlations
+
+To explore monotonic relationships between carbon stocks and a set of biotic and abiotic variables, we computed **Spearman’s rank correlation coefficients** for the year 2013. This non-parametric method is suitable for assessing correlations without assuming normality or linearity in the data.
+
+The analysis included spatial coordinates (UTMX, UTMY), stand structure variables (STAND_AGE, BASAL_AREA, DOM_HEIGHT), biodiversity metrics (SPECIES_RICHNESS, SHANNON_INDEX), canopy features (GAP_FRACTION, CANOPY_COVER), and topographic attributes (ELEVATION, SLOPE, ASPECT).
+
+The output provides:
+
+- **Spearman's ρ (rho)** values, indicating the strength and direction of associations (from –1 to +1).
+- **p-values**, indicating whether correlations are statistically significant.
+
+Values close to ±1 represent strong associations. Significant positive or negative correlations with carbon stocks (`C_STOCKS`) suggest variables that may influence or co-vary with organic carbon accumulation in the forest floor during that year.
+
+**Example for 2013**
+```{r correlations}
+data2013 <- datasetFF %>% filter(YEAR == "2013")
+corr_vars <- data2013 %>% select(C_STOCKS, UTMX, UTMY, STAND_AGE, BASAL_AREA, DOM_HEIGHT, SPECIES_RICHNESS, SHANNON_INDEX, GAP_FRACTION, CANOPY_COVER, ELEVATION, SLOPE, ASPECT)
+rcorr(as.matrix(corr_vars), type = "spearman")
+```
+
+## 3.6. Variance Inflation Factor (VIF)
+
+To assess multicollinearity among predictor variables, we computed the **Variance Inflation Factor (VIF)** using a multiple linear regression model for the year 2013 as example. The model included spatial, structural, biodiversity, canopy, and topographic predictors associated with carbon stocks (`C_STOCKS`).
+
+VIF quantifies how much the variance of a regression coefficient is inflated due to linear correlations with other predictors. It is used to detect redundancy in explanatory variables.
+
+- A **VIF > 5** suggests moderate multicollinearity.
+- A **VIF > 10** is generally considered problematic and may require variable removal or transformation.
+
+The results help identify potential multicollinearity issues that could affect the stability and interpretability of model coefficients in subsequent modeling steps.
+
+**Example for 2013**
+```{r vif}
+modelC_2013VIF <- lm(C_STOCKS ~ UTMX + UTMY + STAND_AGE + BASAL_AREA + DOM_HEIGHT + SPECIES_RICHNESS + SHANNON_INDEX + GAP_FRACTION + ELEVATION + SLOPE + ASPECT, data = data2013)
+vif(modelC_2013VIF)
+```
+
+## 3.7. Train/Test Split
+Before fitting the Random Forest models, we split the dataset into **training** and **validation** subsets to evaluate model performance on unseen data. This step is critical to avoid overfitting and ensure the generalizability of the model.
+
+We used a random sampling approach for the year 2013, allocating:
+
+- **85% of the data for training**, used to fit the model.
+- **15% for validation**, used to assess prediction accuracy.
+
+Stratification by organic layer (`LAYER`) was applied to maintain the proportion of L and FH samples across both subsets. This helps preserve the distributional characteristics of each layer during model training and evaluation.
+
+**Example for 2013**
+```{r split}
+#set.seed(123)
+#train_idx <- sample(seq_len(nrow(data2013)), size = 0.85 * nrow(data2013))
+#training_2013 <- data2013[train_idx, ]
+#testing_2013 <- data2013[-train_idx, ]
+
+#write_csv(training_2013, here("data", "training_2013_85.csv"))
+#write_csv(testing_2013, here("data", "testing_2013_15.csv"))
+```
+
+## 3.8. Conclusion
+
+This exploratory analysis identified key variables, distributional patterns, and correlation structures to inform future Random Forest modeling stages. All outputs are saved in the `/outputs` folder, and this report is rendered to `/docs` for easy viewing.
